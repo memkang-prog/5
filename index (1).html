@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>민원서비스 찾기</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif;background:#f5f7fb;color:#1f2937}
+.container{max-width:1200px;margin:0 auto;padding:32px 20px 50px}
+.hero{background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;border-radius:20px;padding:34px 32px;margin-bottom:22px;box-shadow:0 10px 25px rgba(37,99,235,.15)}
+.hero h1{margin:0 0 8px;font-size:30px} .hero p{margin:0;opacity:.92}
+.search{margin-top:24px;display:flex;gap:10px}
+.search input{flex:1;border:0;border-radius:12px;padding:15px 18px;font-size:16px;outline:none}
+.search button{border:0;border-radius:12px;padding:0 22px;background:#111827;color:#fff;font-weight:700;cursor:pointer}
+.panel{background:#fff;border-radius:16px;padding:20px;margin-bottom:20px;box-shadow:0 3px 12px rgba(15,23,42,.06)}
+.filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+label{font-size:13px;font-weight:700;color:#4b5563;display:block;margin-bottom:6px}
+select,.number{width:100%;padding:11px 12px;border:1px solid #dbe1ea;border-radius:10px;background:#fff;font-size:14px}
+.check{display:flex;align-items:center;gap:8px;margin-top:27px;font-weight:600;font-size:14px}
+.check input{width:17px;height:17px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+.count{font-weight:800} .muted{color:#6b7280;font-size:13px}
+.reset{border:1px solid #d1d5db;background:#fff;padding:9px 13px;border-radius:9px;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:15px;padding:19px;transition:.15s}
+.card:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(15,23,42,.08)}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.badge{font-size:12px;padding:5px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-weight:700}
+.badge.online{background:#ecfdf5;color:#047857} .badge.offline{background:#f3f4f6;color:#6b7280}
+.card h3{margin:0 0 12px;font-size:18px} .meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px}
+.meta div{background:#f8fafc;padding:10px;border-radius:9px} .meta strong{display:block;color:#6b7280;font-size:11px;margin-bottom:3px}
+.empty{text-align:center;padding:60px 20px;color:#6b7280;background:#fff;border-radius:15px;border:1px dashed #cbd5e1}
+mark{background:#fef08a;padding:0 2px;border-radius:3px}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.filters{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.container{padding:20px 12px}.hero{padding:25px 20px}.hero h1{font-size:25px}.search{flex-direction:column}.search button{padding:12px}.grid,.filters{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="container">
+<header class="hero">
+  <h1>민원서비스 찾기</h1>
+  <p>원하는 민원 서비스를 검색하고 조건별로 빠르게 찾아보세요.</p>
+  <div class="search">
+    <input id="keyword" type="search" placeholder="서비스명, 기관, 민원분야로 검색해보세요" autocomplete="off">
+    <button id="searchBtn">검색</button>
+  </div>
+</header>
+
+<section class="panel">
+  <div class="filters">
+    <div>
+      <label for="field">민원분야</label>
+      <select id="field"><option value="">전체 분야</option></select>
+    </div>
+    <div>
+      <label for="online">온라인 처리</label>
+      <select id="online">
+        <option value="">전체</option><option value="가능">온라인 가능</option><option value="불가">온라인 불가</option>
+      </select>
+    </div>
+    <div>
+      <label for="fee">수수료</label>
+      <select id="fee">
+        <option value="">전체</option><option value="free">무료</option><option value="paid">유료</option>
+      </select>
+    </div>
+    <label class="check"><input id="onlyFast" type="checkbox"> 처리기한 3일 이내</label>
+  </div>
+</section>
+
+<section>
+  <div class="toolbar">
+    <div><span id="resultCount" class="count"></span> <span class="muted">개의 서비스</span></div>
+    <button class="reset" id="resetBtn">필터 초기화</button>
+  </div>
+  <div id="results" class="grid"></div>
+</section>
+</div>
+
+<script>
+const services = [
+  {
+    "서비스ID": "S001",
+    "서비스명": "주민등록등본 발급",
+    "소관기관": "주민센터",
+    "민원분야": "주민등록",
+    "온라인처리": "가능",
+    "처리기한일": 7,
+    "수수료": 500
+  },
+  {
+    "서비스ID": "S002",
+    "서비스명": "전입신고",
+    "소관기관": "복지정책과",
+    "민원분야": "주민등록",
+    "온라인처리": "불가",
+    "처리기한일": 1,
+    "수수료": 0
+  },
+  {
+    "서비스ID": "S003",
+    "서비스명": "인감증명 발급",
+    "소관기관": "복지정책과",
+    "민원분야": "주민등록",
+    "온라인처리": "가능",
+    "처리기한일": 1,
+    "수수료": 0
+  },
+  {
+    "서비스ID": "S004",
+    "서비스명": "주민등록증 재발급",
+    "소관기관": "건축과",
+    "민원분야": "주민등록",
+    "온라인처리": "가능",
+    "처리기한일": 0,
+    "수수료": 0
+  },
+  {
+    "서비스ID": "S005",
+    "서비스명": "건축물대장 발급",
+    "소관기관": "구청 민원봉사과",
+    "민원분야": "건축",
+    "온라인처리": "불가",
+    "처리기한일": 0,
+    "수수료": 1000
+  },
+  {
+    "서비스ID": "S006",
+    "서비스명": "건축허가 신청",
+    "소관기관": "건축과",
+    "민원분야": "건축",
+    "온라인처리": "불가",
+    "처리기한일": 1,
+    "수수료": 2000
+  },
+  {
+    "서비스ID": "S007",
+    "서비스명": "용도변경 신고",
+    "소관기관": "시청 민원과",
+    "민원분야": "건축",
+    "온라인처리": "불가",
+    "처리기한일": 0,
+    "수수료": 0
+  },
+  {
+    "서비스ID": "S008",
+    "서비스명": "지방세 납부확인서",
+    "소관기관": "건축과",
+    "민원분야": "세무",
+    "온라인처리": "가능",
+    "처리기한일": 1,
+    "수수료": 1000
+  },
+  {
+    "서비스ID": "S009",
+    "서비스명": "취득세 신고",
+    "소관기관": "교통행정과",
+    "민원분야": "세무",
+    "온라인처리": "가능",
+    "처리기한일": 0,
+    "수수료": 0
+  },
+  {
+    "서비스ID": "S010",
+    "서비스명": "재산세 조회",
+    "소관기관": "교통행정과",
+    "민원분야": "세무",
+    "온라인처리": "가능",
+    "처리기한일": 3,
+    "수수료": 0
+  },
+  {
+    "서비스ID": "S011",
+    "서비스명": "기초연금 신청",
+    "소관기관": "건축과",
+    "민원분야": "복지",
+    "온라인처리": "가능",
+    "처리기한일": 7,
+    "수수료": 500
+  },
+  {
+    "서비스ID": "S012",
+    "서비스명": "복지급여 조회",
+    "소관기관": "시청 민원과",
+    "민원분야": "복지",
+    "온라인처리": "가능",
+    "처리기한일": 14,
+    "수수료": 5000
+  },
+  {
+    "서비스ID": "S013",
+    "서비스명": "장애인 등록",
+    "소관기관": "주민센터",
+    "민원분야": "복지",
+    "온라인처리": "가능",
+    "처리기한일": 5,
+    "수수료": 0
+  },
+  {
+    "서비스ID": "S014",
+    "서비스명": "자동차 등록",
+    "소관기관": "주민센터",
+    "민원분야": "교통",
+    "온라인처리": "가능",
+    "처리기한일": 1,
+    "수수료": 5000
+  },
+  {
+    "서비스ID": "S015",
+    "서비스명": "운전면허 갱신",
+    "소관기관": "교통행정과",
+    "민원분야": "교통",
+    "온라인처리": "불가",
+    "처리기한일": 1,
+    "수수료": 0
+  },
+  {
+    "서비스ID": "S016",
+    "서비스명": "주정차 위반 조회",
+    "소관기관": "주민센터",
+    "민원분야": "교통",
+    "온라인처리": "가능",
+    "처리기한일": 7,
+    "수수료": 1000
+  },
+  {
+    "서비스ID": "S017",
+    "서비스명": "배출시설 신고",
+    "소관기관": "주민센터",
+    "민원분야": "환경",
+    "온라인처리": "가능",
+    "처리기한일": 1,
+    "수수료": 0
+  },
+  {
+    "서비스ID": "S018",
+    "서비스명": "폐기물 처리 신청",
+    "소관기관": "시청 민원과",
+    "민원분야": "환경",
+    "온라인처리": "가능",
+    "처리기한일": 14,
+    "수수료": 5000
+  },
+  {
+    "서비스ID": "S019",
+    "서비스명": "식품영업 신고",
+    "소관기관": "건축과",
+    "민원분야": "위생",
+    "온라인처리": "가능",
+    "처리기한일": 3,
+    "수수료": 2000
+  },
+  {
+    "서비스ID": "S020",
+    "서비스명": "위생업소 조회",
+    "소관기관": "시청 민원과",
+    "민원분야": "위생",
+    "온라인처리": "불가",
+    "처리기한일": 7,
+    "수수료": 500
+  },
+  {
+    "서비스ID": "S021",
+    "서비스명": "여권 발급 신청",
+    "소관기관": "건축과",
+    "민원분야": "여권",
+    "온라인처리": "가능",
+    "처리기한일": 7,
+    "수수료": 1000
+  },
+  {
+    "서비스ID": "S022",
+    "서비스명": "여권 재발급",
+    "소관기관": "교통행정과",
+    "민원분야": "여권",
+    "온라인처리": "가능",
+    "처리기한일": 1,
+    "수수료": 1000
+  }
+];
+
+const $ = id => document.getElementById(id);
+const keyword = $("keyword"), field = $("field"), online = $("online"), fee = $("fee"), onlyFast = $("onlyFast");
+const results = $("results"), resultCount = $("resultCount");
+
+const fields = [...new Set(services.map(x => x.민원분야))].sort();
+fields.forEach(v => field.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`));
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
+}
+function highlight(text, q) {
+  const safe = escapeHtml(text);
+  if (!q) return safe;
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return safe.replace(new RegExp(`(${escaped})`, "gi"), "<mark>$1</mark>");
+}
+function render() {
+  const q = keyword.value.trim().toLowerCase();
+  const list = services.filter(s => {
+    const hay = [s.서비스명,s.소관기관,s.민원분야,s.서비스ID].join(" ").toLowerCase();
+    const matchQ = !q || hay.includes(q);
+    const matchField = !field.value || s.민원분야 === field.value;
+    const matchOnline = !online.value || s.온라인처리 === online.value;
+    const matchFee = !fee.value || (fee.value === "free" ? Number(s.수수료) === 0 : Number(s.수수료) > 0);
+    const matchFast = !onlyFast.checked || Number(s.처리기한일) <= 3;
+    return matchQ && matchField && matchOnline && matchFee && matchFast;
+  });
+
+  resultCount.textContent = list.length;
+  if (!list.length) {
+    results.className = "";
+    results.innerHTML = `<div class="empty"><strong>검색 결과가 없습니다.</strong><br>검색어 또는 필터 조건을 변경해 보세요.</div>`;
+    return;
+  }
+  results.className = "grid";
+  results.innerHTML = list.map(s => `
+    <article class="card">
+      <div class="badges">
+        <span class="badge">${escapeHtml(s.민원분야)}</span>
+        <span class="badge ${s.온라인처리 === "가능" ? "online" : "offline"}">${escapeHtml(s.온라인처리 === "가능" ? "온라인 가능" : "방문 처리")}</span>
+      </div>
+      <h3>${highlight(s.서비스명, q)}</h3>
+      <div class="meta">
+        <div><strong>서비스 ID</strong>${escapeHtml(s.서비스ID)}</div>
+        <div><strong>소관기관</strong>${escapeHtml(s.소관기관)}</div>
+        <div><strong>처리기한</strong>${escapeHtml(s.처리기한일)}일</div>
+        <div><strong>수수료</strong>${Number(s.수수료) === 0 ? "무료" : Number(s.수수료).toLocaleString()+"원"}</div>
+      </div>
+    </article>`).join("");
+}
+
+[keyword, field, online, fee, onlyFast].forEach(el => {
+  el.addEventListener(el.type === "search" ? "input" : "change", render);
+});
+$("searchBtn").addEventListener("click", render);
+$("resetBtn").addEventListener("click", () => {
+  keyword.value = ""; field.value = ""; online.value = ""; fee.value = ""; onlyFast.checked = false; render();
+});
+render();
+</script>
+</body>
+</html>
